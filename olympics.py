@@ -9,6 +9,72 @@ def output_function(filename, output_string):
     print(output_string)
 
 
+def interactive(filename):
+    while True:
+        country = input("Введіть назву країни або exit для виходу ")
+        if country == "exit":
+            break
+        statistic_dict = dict()
+        first_participate = ""
+        first_participate_year = None
+        is_first_line = True
+        with open(filename, "r") as file:
+            for line in file.readlines():
+                data = line.strip().split(';')
+
+                if is_first_line:
+                    head = data
+                    is_first_line = False
+                    continue
+                if first_participate_year is None:
+                    first_participate_year = data[head.index("Year")]
+                    first_participate = f"Перша участь у олімпіаді {data[head.index('Year')]} у {data[head.index('City')]}"
+                if data[head.index("Team")].lower() == country.lower() and data[head.index("Medal")] != "NA":
+                    if not data[head.index("Year")] in statistic_dict:
+                        statistic_dict[data[head.index("Year")]] = {data[head.index("Medal")]: 1}
+                    else:
+                        if not data[head.index("Medal")] in statistic_dict[data[head.index("Year")]]:
+                            statistic_dict[data[head.index("Year")]][data[head.index("Medal")]] = 1
+                        else:
+                            statistic_dict[data[head.index("Year")]][data[head.index("Medal")]] += 1
+
+
+        print(first_participate)
+        if not statistic_dict:
+            print(f"Загальна кількість медалей по країнам {country} не знайдена")
+        else:
+            overall_output_string = ""
+            min_medals = 9999
+            min_medal_year = ""
+            max_medals = 0
+            max_medal_year = ""
+            year_participate = 0
+            total_medal_dict = dict()
+            total_medals = 0
+            for year in statistic_dict:
+                year_participate += 1
+                total_medal_year = 0
+                for medal in statistic_dict[year]:
+                    total_medal_year += statistic_dict[year][medal]
+                    if medal not in total_medal_dict:
+                        total_medal_dict[medal] = statistic_dict[year][medal]
+                    else:
+                        total_medal_dict[medal] += statistic_dict[year][medal]
+                if total_medal_year > max_medals:
+                    max_medals = statistic_dict[year][medal]
+                    max_medal_year = year
+                if total_medal_year < min_medals:
+                    min_medals = statistic_dict[year][medal]
+                    min_medal_year = year
+                total_medals += total_medal_year
+            print(f"Має найбільшу кількість медалей у {max_medal_year} році це {max_medals} медалей")
+            print(f"Має найменшу кількість медалей у {min_medal_year} році це {min_medals} медалей")
+            for medal in total_medal_dict:
+                average_medals = total_medal_dict[medal] / year_participate
+                average_medals = round(average_medals)
+                print(f"В середньому отримує {average_medals} {medal} медалей")
+
+
 def parse_csv(filename, country, year, output, total_year, overall):
     head = None
     is_first_line = True
@@ -76,7 +142,7 @@ def parse_csv(filename, country, year, output, total_year, overall):
                 max_medals = 0
                 max_medal_year = ""
                 for year in overall_dict[country]:
-                    if overall_dict[country][year]>max_medals:
+                    if overall_dict[country][year] > max_medals:
                         max_medals = overall_dict[country][year]
                         max_medal_year = year
 
@@ -105,7 +171,9 @@ def main():
     parser.add_argument("-output", default=None)
     parser.add_argument("-total", default=None)
     parser.add_argument("-overall", nargs="+", default=None)
+    parser.add_argument("-interactive", action="store_true")
     arguments = parser.parse_args()
+
     filename = arguments.filename
     country = arguments.medals[0]
     year = arguments.medals[1]
@@ -113,6 +181,8 @@ def main():
     total_year = arguments.total
     overall = arguments.overall
     parse_csv(filename, country, year, output, total_year, overall)
+    if arguments.interactive:
+        interactive(filename)
 
 
 if __name__ == '__main__':
