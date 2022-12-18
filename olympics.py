@@ -9,7 +9,7 @@ def output_function(filename, output_string):
     print(output_string)
 
 
-def parse_csv(filename, country, year, output, total_year):
+def parse_csv(filename, country, year, output, total_year, overall):
     head = None
     is_first_line = True
     with open(filename, "r") as file:
@@ -18,6 +18,9 @@ def parse_csv(filename, country, year, output, total_year):
         country_exist = False
         olympics_held_this_year = False
         total_year_dict = dict()
+        overall_dict = dict()
+        if overall:
+            overall = set(overall)
         for line in file.readlines():
             data = line.strip().split(';')
 
@@ -25,16 +28,25 @@ def parse_csv(filename, country, year, output, total_year):
                 head = data
                 is_first_line = False
                 continue
+            if overall:
+                if data[head.index("Team")] in overall and data[head.index("Medal")] != "NA":
+                    if not data[head.index("Team")] in overall_dict:
+                        overall_dict[data[head.index("Team")]] = {data[head.index("Year")]: 1}
+                    else:
+                        if not data[head.index("Year")] in overall_dict[data[head.index("Team")]]:
+                            overall_dict[data[head.index("Team")]][data[head.index("Year")]] = 1
+                        else:
+                            overall_dict[data[head.index("Team")]][data[head.index("Year")]] += 1
             if total_year:
-                if total_year == data[head.index("Year")] and data[-1] != "NA":
+                if total_year == data[head.index("Year")] and data[head.index("Medal")] != "NA":
                     if not data[head.index("Team")] in total_year_dict:
                         total_year_dict[data[head.index("Team")]] = {data[head.index("Medal")]: 1}
                     else:
                         if not data[head.index("Medal")] in total_year_dict[data[head.index("Team")]]:
                             total_year_dict[data[head.index("Team")]][data[head.index("Medal")]] = 1
                         else:
-                            total_year_dict[data[head.index("Team")]][data[-1]] += 1
-            if (country == data[head.index("NOC")] or country == data[head.index("Team")]):
+                            total_year_dict[data[head.index("Team")]][data[head.index("Medal")]] += 1
+            if country == data[head.index("NOC")] or country == data[head.index("Team")]:
                 country_exist = True
             if year == data[head.index("Year")]:
                 olympics_held_this_year = True
@@ -53,6 +65,24 @@ def parse_csv(filename, country, year, output, total_year):
             output_function(output, f"Країна {country} не існує")
         if medals:
             output_function(output, "Загальна кількість медалей: " + str(medals))
+
+        if not overall_dict and overall is not None:
+            output_function(output, f"Загальна кількість медалей по країнам {overall} не знайдена")
+        elif overall is None:
+            pass
+        else:
+            overall_output_string = ""
+            for country in overall_dict:
+                max_medals = 0
+                max_medal_year = ""
+                for year in overall_dict[country]:
+                    if overall_dict[country][year]>max_medals:
+                        max_medals = overall_dict[country][year]
+                        max_medal_year = year
+
+                overall_output_string = overall_output_string+ f"{country} має найбільшу кількість медалей у {max_medal_year} році це {max_medals} медалей\n"
+            output_function(output, overall_output_string)
+
         if not total_year_dict and total_year is not None:
             output_function(output, f"Тотальна кількість медалей у рік {total_year} не знайдена")
         elif total_year is None:
@@ -62,7 +92,8 @@ def parse_csv(filename, country, year, output, total_year):
             for country in total_year_dict:
                 total_year_output_string = total_year_output_string + country + " "
                 for medal in total_year_dict[country]:
-                    total_year_output_string = total_year_output_string + medal + ":" + str(total_year_dict[country][medal]) + " "
+                    total_year_output_string = total_year_output_string + medal + ":" + str(
+                        total_year_dict[country][medal]) + " "
                 total_year_output_string = total_year_output_string + "\n"
             output_function(output, total_year_output_string)
 
@@ -73,13 +104,15 @@ def main():
     parser.add_argument("-medals", nargs=2)
     parser.add_argument("-output", default=None)
     parser.add_argument("-total", default=None)
+    parser.add_argument("-overall", nargs="+", default=None)
     arguments = parser.parse_args()
     filename = arguments.filename
     country = arguments.medals[0]
     year = arguments.medals[1]
     output = arguments.output
     total_year = arguments.total
-    parse_csv(filename, country, year, output, total_year)
+    overall = arguments.overall
+    parse_csv(filename, country, year, output, total_year, overall)
 
 
 if __name__ == '__main__':
